@@ -9,6 +9,7 @@
 """Invenio module to ease the creation and management of applications."""
 
 from ..helpers.docker_helper import DockerHelper
+from ..helpers.packaging import get_packaging_backend
 from ..helpers.process import ProcessResponse
 from .commands import Commands
 from .services_health import HEALTHCHECKS, ServicesHealthCommands
@@ -49,42 +50,43 @@ class ServicesCommands(Commands):
             )
 
         return ProcessResponse(
-                output=f"Services setup status consistent.",
+                output="Services setup status consistent.",
                 status_code=0
             )
 
     def _cleanup(self):
         """Services cleanup steps."""
+        prefix = get_packaging_backend(self.cli_config).run_command("invenio")
         steps = [
             CommandStep(cmd=[
-                'pipenv', 'run', 'invenio', 'shell', '--no-term-title', '-c',
+                *prefix, 'shell', '--no-term-title', '-c',
                 "import redis; redis.StrictRedis.from_url(app.config['CACHE_REDIS_URL']).flushall(); print('Cache cleared')"],  # noqa
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Flushing Redis...",
                 skippable=True
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'db', 'destroy',
-                     '--yes-i-know'],
+                cmd=[*prefix, 'db', 'destroy', '--yes-i-know'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Destroying database...",
                 skippable=True
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'index', 'destroy',
+                cmd=[*prefix, 'index', 'destroy',
                      '--force', '--yes-i-know'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Destroying indices...",
                 skippable=True
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'index', 'queue',
+                cmd=[*prefix, 'index', 'queue',
                      'init', 'purge'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Purging queues...",
                 skippable=True
             ),
-            FunctionStep(func=self.cli_config.update_services_setup,
+            FunctionStep(
+                func=self.cli_config.update_services_setup,
                 args={"is_setup": False},
                 message="Updating service setup status (False)..."
             )
@@ -103,6 +105,7 @@ class ServicesCommands(Commands):
 
     def _setup(self):
         """Services initialization steps."""
+        prefix = get_packaging_backend(self.cli_config).run_command("invenio")
         steps = [
             FunctionStep(
                 func=self.services_expected_status,
@@ -110,30 +113,30 @@ class ServicesCommands(Commands):
                 message="Checking services are not setup..."
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'db', 'init', 'create'],
+                cmd=[*prefix, 'db', 'init', 'create'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Creating database..."
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'files', 'location',
+                cmd=[*prefix, 'files', 'location',
                      'create', '--default', 'default-location',
                      self._default_location_path()],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Creating files location..."
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'roles', 'create', 'admin'],
+                cmd=[*prefix, 'roles', 'create', 'admin'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Creating admin role..."
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'access', 'allow',
+                cmd=[*prefix, 'access', 'allow',
                      'superuser-access', 'role', 'admin'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Allowing superuser access to admin role..."
             ),
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'index', 'init'],
+                cmd=[*prefix, 'index', 'init'],
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Creating indices..."
             ),
@@ -148,9 +151,11 @@ class ServicesCommands(Commands):
 
     def demo(self):
         """Steps to add demo records into the instance."""
+        pkg_backend = get_packaging_backend(self.cli_config)
+        command = pkg_backend.run_command("invenio", "rdm-records", "demo")
         steps = [
             CommandStep(
-                cmd=['pipenv', 'run', 'invenio', 'rdm-records', 'demo'],
+                cmd=command,
                 env={'PIPENV_VERBOSITY': "-1"},
                 message="Creating demo records..."
             )
@@ -160,7 +165,8 @@ class ServicesCommands(Commands):
 
     def fixtures(self):
         """Steps to set up the required fixtures for the instance."""
-        command = ['pipenv', 'run', 'invenio', 'rdm-records', 'fixtures']
+        pkg_backend = get_packaging_backend(self.cli_config)
+        command = pkg_backend.run_command("invenio", "rdm-records", "fixtures")
         steps = [
             CommandStep(
                 cmd=command,

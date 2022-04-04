@@ -57,7 +57,7 @@ class CLIConfig(object):
         try:
             with open(self.private_config_path) as cfg_file:
                 self.private_config.read_file(cfg_file)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             CLIConfig._write_private_config(Path(project_dir))
             with open(self.private_config_path) as cfg_file:
                 self.private_config.read_file(cfg_file)
@@ -124,6 +124,12 @@ class CLIConfig(object):
     def get_file_storage(self):
         """Returns the file storage (local, s3, etc.)."""
         return self.config[CLIConfig.COOKIECUTTER_SECTION]['file_storage']
+
+    def get_packaging_backend(self):
+        """Return the configured packaging backend (poetry/pipenv)."""
+        return self.config[CLIConfig.COOKIECUTTER_SECTION].get(
+            'packaging_backend', 'pipenv'
+        )
 
     @classmethod
     def _write_private_config(cls, project_dir):

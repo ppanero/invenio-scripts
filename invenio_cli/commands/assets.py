@@ -9,16 +9,16 @@
 
 
 import subprocess
-from functools import partial
 from pathlib import Path
 
 import click
 from pynpm import NPMPackage
 
 from ..helpers import env
+from ..helpers.packaging import get_packaging_backend
 from ..helpers.process import ProcessResponse, run_interactive
 from .local import LocalCommands
-from .steps import CommandStep, FunctionStep
+from .steps import FunctionStep
 
 
 class AssetsCommands(LocalCommands):
@@ -79,7 +79,7 @@ class AssetsCommands(LocalCommands):
             )
         else:
             return ProcessResponse(
-                error=f"Unable to install dependent packages. "
+                error="Unable to install dependent packages. "
                       "Got error code {status_code}",
                 status_code=status_code
             )
@@ -125,8 +125,9 @@ class AssetsCommands(LocalCommands):
     def watch_assets(self):
         """High-level command to watch assets for changes."""
         # Commands
-        prefix = ['pipenv', 'run']
-        watch_cmd = prefix + ['invenio', 'webpack', 'run', 'start']
+        watch_cmd = get_packaging_backend(self.cli_config).run_command(
+            "invenio", "webpack", "run", "start"
+        )
 
         with env(FLASK_ENV='development'):
             # Collect into statics/ and assets/ folder
