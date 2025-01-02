@@ -8,6 +8,7 @@
 
 """Invenio module to ease the creation and management of applications."""
 
+import sys
 from os import listdir
 
 from ..helpers.process import ProcessResponse
@@ -17,13 +18,24 @@ from .steps import CommandStep
 class PackagesCommands:
     """Local installation commands."""
 
-    @staticmethod
-    def install_packages(packages, log_file=None):
+    def __init__(self, cli_config):
+        """Construct PackagesCommands."""
+        self.cli_config = cli_config
+
+    def install_packages(self, packages, log_file=None):
         """Steps to install Python packages.
 
         It is a class method since it does not require any configuration.
         """
-        cmd = ["uv", "pip", "install"]
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                cmd = ["uv", "pip", "install"]
+            case "pip":
+                cmd = ["pipenv", "run", "pip", "install"]
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
+
         for package in packages:
             cmd.extend(["-e", package])
 
@@ -38,14 +50,20 @@ class PackagesCommands:
 
         return steps
 
-    @staticmethod
-    def outdated_packages():
+    def outdated_packages(self):
         """Steps to show outdated packages.
 
         It is a class method since it does not require any configuration.
         """
-        raise RuntimeError("not yet ported to uv")
-        cmd = ["pipenv", "update", "--outdated"]
+
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                raise RuntimeError("not yet ported to uv")
+            case "pip":
+                cmd = ["pipenv", "update", "--outdated"]
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
 
         steps = [
             CommandStep(
@@ -57,13 +75,19 @@ class PackagesCommands:
 
         return steps
 
-    @staticmethod
-    def update_packages():
+    def update_packages(self):
         """Steps to update all Python packages.
 
         It is a class method since it does not require any configuration.
         """
-        cmd = ["uv", "sync", "--upgrade"]
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                cmd = ["uv", "sync", "--upgrade"]
+            case "pip":
+                cmd = ["pipenv", "update"]
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
 
         steps = [
             CommandStep(
@@ -75,19 +99,23 @@ class PackagesCommands:
 
         return steps
 
-    @staticmethod
-    def update_package_new_version(package, version):
+    def update_package_new_version(self, package, version):
         """Update invenio-app-rdm version.
 
         It is a class method since it does not require any configuration.
         """
-        raise RuntimeError("not yet ported to uv")
-        prefix = ["pipenv"]
-        app = prefix + ["install", package + version]
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                raise RuntimeError("not yet ported to uv")
+            case "pip":
+                cmd = ["pipenv", "install", package + version]
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
 
         steps = [
             CommandStep(
-                cmd=app,
+                cmd=cmd,
                 env={"PIPENV_VERBOSITY": "-1"},
                 message=f"Updating {package} to version {version}...",
             )
@@ -95,10 +123,20 @@ class PackagesCommands:
 
         return steps
 
-    @staticmethod
-    def install_locked_dependencies(pre, dev):
+    def install_locked_dependencies(self, pre, dev):
         """Install dependencies from requirements.txt using install."""
-        cmd = ["uv", "sync"]
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                cmd = ["uv", "sync"]
+            case "pip":
+                cmd = ["pipenv", "sync"]
+                if pre:
+                    cmd += ["--pre"]
+                if dev:
+                    cmd += ["--dev"]
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
 
         steps = [
             CommandStep(
@@ -111,10 +149,20 @@ class PackagesCommands:
 
         return steps
 
-    @staticmethod
-    def lock(pre, dev):
+    def lock(self, pre, dev):
         """Steps to lock Python dependencies."""
-        cmd = ["uv", "lock"]
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                cmd = ["uv", "lock"]
+            case "pip":
+                cmd = ["pipenv", "lock"]
+                if pre:
+                    cmd += ["--pre"]
+                if dev:
+                    cmd += ["--dev"]
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
 
         steps = [
             CommandStep(
@@ -126,10 +174,18 @@ class PackagesCommands:
 
         return steps
 
-    @staticmethod
-    def is_locked():
+    def is_locked(self):
         """Checks if the dependencies have been locked."""
-        locked = "uv.lock" in listdir(".")
+
+        match self.cli_config.python_packages_manager:
+            case "uv":
+                locked = "uv.lock" in listdir(".")
+            case "pip":
+                locked = "Pipfile.lock" in listdir(".")
+            case _:
+                print("please configure python package manager.")
+                sys.exit()
+
         if not locked:
             return ProcessResponse(
                 error="Dependencies were not locked. "
