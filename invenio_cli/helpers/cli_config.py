@@ -3,7 +3,7 @@
 # Copyright (C) 2019-2024 CERN.
 # Copyright (C) 2019-2020 Northwestern University.
 # Copyright (C) 2021 Esteban J. G. Gabancho.
-# Copyright (C) 2024 Graz University of Technology.
+# Copyright (C) 2024-2025 Graz University of Technology.
 #
 # Invenio-Cli is free software; you can redistribute it and/or modify it
 # under the terms of the MIT License; see LICENSE file for more details.
@@ -18,7 +18,7 @@ from .filesystem import get_created_files
 from .process import ProcessResponse
 
 
-class CLIConfig(object):
+class CLIConfig:
     """Invenio-cli configuration.
 
     It provides a combined interface to the local CLI configuration which
@@ -60,6 +60,23 @@ class CLIConfig(object):
             CLIConfig._write_private_config(Path(project_dir))
             with open(self.private_config_path) as cfg_file:
                 self.private_config.read_file(cfg_file)
+
+    @property
+    def python_packages_manager(self):
+        """Get python packages manager."""
+        return self.config[CLIConfig.CLI_SECTION].get("python_packages_manager", "pip")
+
+    @property
+    def javascript_packages_manager(self):
+        """Get javascript packages manager."""
+        return self.config[CLIConfig.CLI_SECTION].get(
+            "javascript_packages_manager", "npm"
+        )
+
+    @property
+    def assets_builder(self):
+        """Get assets builder."""
+        return self.config[CLIConfig.CLI_SECTION].get("assets_builder", "webpack")
 
     def get_project_dir(self):
         """Returns path to project directory."""
@@ -120,6 +137,14 @@ class CLIConfig(object):
             "search_host",
             "localhost",
         )
+
+    def get_web_port(self):
+        """Returns web port."""
+        return self.config[CLIConfig.COOKIECUTTER_SECTION].get("web_port", "5000")
+
+    def get_web_host(self):
+        """Returns web host."""
+        return self.config[CLIConfig.COOKIECUTTER_SECTION].get("web_host", "127.0.0.1")
 
     def get_db_type(self):
         """Returns the database type (mysql, postgresql)."""
